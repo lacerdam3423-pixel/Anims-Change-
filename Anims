@@ -5,36 +5,202 @@ if game.CoreGui:FindFirstChild("ChangedAnimsGui") then
 	game.CoreGui.ChangedAnimsGui:Destroy()
 end
 
--- ================= PACKS (TESTADOS) =================
+-- ================= PACKS =================
 local Packs = {
 	["Default"] = {
-		idle="507766666", walk="507777826", run="507767714",
-		jump="507765000", fall="507767968", climb="507765644"
+		R15 = {idle="507766666", walk="5319909330", run="5319900634", jump="507765000", fall="507767968", climb="507765644"},
+		R6  = {idle="180435571", walk="5319909330", run="5319900634", jump="125750702", fall="180436148", climb="180436334"}
 	},
-
 	["Old School"] = {
-		idle="5319828216", walk="5319831086", run="5319837791",
-		jump="5319841935", fall="5319844329", climb="5319847204"
+		R15 = {5319922112", walk="5319831086", run="5319837791", jump="5319917561", fall="5319914476", climb="5319931619"},
+		R6  = {idle="5319922112", walk="180426354", run="180426354", jump="5319917561", fall="5319914476", climb="5319931619"}
 	},
-
 	["Adidas Community"] = {
-		idle="10921344533", walk="10921355204", run="10921367042",
-		jump="10921377121", fall="10921384082", climb="10921393645"
+		R15 = {idle="10921344533", walk="10921355204", run="10921367042", jump="10921377121", fall="10921384082", climb="10921393645"},
+		R6  = {idle="180435571", walk="180426354", run="180426354", jump="125750702", fall="180436148", climb="180436334"}
 	},
-
 	["Ninja"] = {
-		idle="656117400", walk="656121766", run="656118852",
-		jump="656117878", fall="656115606", climb="656114359"
+		R15 = {idle="656117400", walk="656121766", run="656118852", jump="656117878", fall="656115606", climb="656114359"},
+		R6  = {idle="180435571", walk="180426354", run="180426354", jump="125750702", fall="180436148", climb="180436334"}
 	},
-
 	["Stylish"] = {
-		idle="616136790", walk="616146177", run="616140816",
-		jump="616139451", fall="616134815", climb="616133594"
+		R15 = {idle="616136790", walk="616146177", run="616140816", jump="616139451", fall="616134815", climb="616133594"},
+		R6  = {idle="180435571", walk="180426354", run="180426354", jump="125750702", fall="180436148", climb="180436334"}
 	}
 }
 
 local currentPack = "Default"
 
+-- ================= RIG CHECK =================
+local function isR6(char)
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	return hum and hum.RigType == Enum.HumanoidRigType.R6
+end
+
+-- ================= BUILD SAFE ANIMATE =================
+local function buildAnimate(pack, rig)
+	local animate = Instance.new("LocalScript")
+	animate.Name = "Animate"
+
+	local function make(name, animName, id)
+		local f = Instance.new("Folder")
+		f.Name = name
+		local a = Instance.new("Animation")
+		a.Name = animName
+		a.AnimationId = "rbxassetid://"..id
+		a.Parent = f
+		f.Parent = animate
+	end
+
+	make("idle", rig=="R6" and "Animation1" or "Animation1", pack.idle)
+	make("walk", rig=="R6" and "WalkAnim" or "WalkAnim", pack.walk)
+	make("run",  rig=="R6" and "RunAnim"  or "RunAnim",  pack.run)
+	make("jump", rig=="R6" and "JumpAnim" or "JumpAnim", pack.jump)
+	make("fall", rig=="R6" and "FallAnim" or "FallAnim", pack.fall)
+	make("climb",rig=="R6" and "ClimbAnim"or "ClimbAnim",pack.climb)
+
+	return animate
+end
+
+-- ================= APPLY =================
+local function applyPack(char)
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	if not hum then return end
+
+	local rig = hum.RigType == Enum.HumanoidRigType.R6 and "R6" or "R15"
+	local pack = Packs[currentPack][rig]
+	if not pack then return end
+
+	if char:FindFirstChild("Animate") then
+		char.Animate:Destroy()
+	end
+
+	local animate = buildAnimate(pack, rig)
+	animate.Parent = char
+
+	pcall(function()
+		hum:ChangeState(Enum.HumanoidStateType.Running)
+	end)
+end
+
+-- ================= RESET ANIM =================
+local function resetAnim(char)
+	if char:FindFirstChild("Animate") then
+		char.Animate:Destroy()
+	end
+	-- Recria o Animate padrão
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	if hum then
+		local defaultAnimate = game:GetService("Players"):CreateHumanoidModelFromUserId(player.UserId)
+		-- Em mobile/Delta Executor, apenas recriamos o Animate padrão
+		local clone = game:GetService("ReplicatedStorage"):FindFirstChild("Animate") -- se existir
+		if clone then
+			clone:Clone().Parent = char
+		end
+	end
+end
+
+-- ================= PLAYER EVENTS =================
+if player.Character then
+	task.wait(1)
+	applyPack(player.Character)
+end
+
+player.CharacterAdded:Connect(function(char)
+	task.wait(1)
+	applyPack(char)
+end)
+
+-- ================= GUI =================
+local gui = Instance.new("ScreenGui", game.CoreGui)
+gui.Name = "ChangedAnimsGui"
+gui.ResetOnSpawn = false
+
+local main = Instance.new("Frame", gui)
+main.Size = UDim2.fromOffset(220,280)
+main.Position = UDim2.fromScale(0.05,0.3)
+main.BackgroundColor3 = Color3.fromRGB(20,20,20)
+main.Active = true
+main.Draggable = true
+main.BorderSizePixel = 0
+Instance.new("UICorner", main).CornerRadius = UDim.new(0,10)
+
+local title = Instance.new("TextLabel", main)
+title.Size = UDim2.fromOffset(220,30)
+title.BackgroundTransparency = 1
+title.Text = "Changed Anims"
+title.Font = Enum.Font.GothamBold
+title.TextSize = 14
+title.TextColor3 = Color3.new(1,1,1)
+
+local close = Instance.new("TextButton", main)
+close.Size = UDim2.fromOffset(26,26)
+close.Position = UDim2.fromOffset(188,2)
+close.Text = "-"
+close.Font = Enum.Font.GothamBold
+close.TextSize = 16
+close.BackgroundColor3 = Color3.fromRGB(40,40,40)
+close.TextColor3 = Color3.new(1,1,1)
+
+local holder = Instance.new("Frame", main)
+holder.Position = UDim2.fromOffset(10,40)
+holder.Size = UDim2.fromOffset(200,200)
+holder.BackgroundTransparency = 1
+
+local list = Instance.new("UIListLayout", holder)
+list.Padding = UDim.new(0,6)
+
+for name,_ in pairs(Packs) do
+	local btn = Instance.new("TextButton", holder)
+	btn.Size = UDim2.fromOffset(200,28)
+	btn.Text = name
+	btn.Font = Enum.Font.Gotham
+	btn.TextSize = 13
+	btn.BackgroundColor3 = Color3.fromRGB(35,35,35)
+	btn.TextColor3 = Color3.new(1,1,1)
+
+	btn.MouseButton1Click:Connect(function()
+		currentPack = name
+		if player.Character then
+			applyPack(player.Character)
+		end
+	end)
+end
+
+-- Botão RESET
+local resetBtn = Instance.new("TextButton", holder)
+resetBtn.Size = UDim2.fromOffset(200,28)
+resetBtn.Text = "Reset Anim"
+resetBtn.Font = Enum.Font.GothamBold
+resetBtn.TextSize = 13
+resetBtn.BackgroundColor3 = Color3.fromRGB(100,30,30)
+resetBtn.TextColor3 = Color3.new(1,1,1)
+
+resetBtn.MouseButton1Click:Connect(function()
+	if player.Character then
+		resetAnim(player.Character)
+	end
+end)
+
+-- ================= MINI =================
+local mini = Instance.new("TextButton", gui)
+mini.Size = UDim2.fromOffset(42,42)
+mini.Position = UDim2.fromScale(0.02,0.5)
+mini.Text = "Anims"
+mini.Visible = false
+mini.Font = Enum.Font.GothamBold
+mini.TextSize = 12
+mini.BackgroundColor3 = Color3.fromRGB(25,25,25)
+mini.TextColor3 = Color3.new(1,1,1)
+
+close.MouseButton1Click:Connect(function()
+	main.Visible = false
+	mini.Visible = true
+end)
+mini.MouseButton1Click:Connect(function()
+	main.Visible = true
+	mini.Visible = false
+end)
 -- ================= CREATE SAFE ANIMATE =================
 local function buildAnimate(pack)
 	local animate = Instance.new("LocalScript")
